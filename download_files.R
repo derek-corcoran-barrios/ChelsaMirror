@@ -38,7 +38,9 @@ for(i in 1:length(Layers)){
   STACK <- list()
   for(j in 1:nrow(Layers[[i]])){
     while (length(STACK) < j) {
-      try({download.file(Layers[[i]]$Link[j], destfile = paste0("Temp", Layers[[i]]$Bio[j], ".tif"))
+      try({
+        file.remove(paste0("Temp", Layers[[i]]$Bio[j], ".tif"))
+        download.file(Layers[[i]]$Link[j], destfile = paste0("Temp", Layers[[i]]$Bio[j], ".tif"))
         STACK[[j]] <- raster(paste0("Temp", Layers[[i]]$Bio[j], ".tif")) %>% 
           magrittr::set_names(paste0("bio", Layers[[i]]$Bio[j]))})
     }
