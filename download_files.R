@@ -2,7 +2,8 @@ library(sf)
 library(raster)
 library(tidyverse)
 library(rgdal)
-library(rgdal)
+library(terra)
+
 
 #Carpeta de capas
 
@@ -34,22 +35,32 @@ Layers <- Table_Layers %>%
   purrr::map(~mutate(.x, Bio = formatC(Bio, digits = 1, flag = "0", mode = "integer")))
 
 
+AllFiles <- vector()
+
+for(i in 1:length(Layers)){
+  AllFiles[i] <- paste(unique(Layers[[i]]$Year),unique(Layers[[i]]$RCP), paste(unique(Layers[[i]]$Model), unique(Layers[[i]]$RCP),".tif", sep = "_"), sep = "/")
+}
+
+Cond <- !file.exists(AllFiles)
+
+Layers <- Layers[Cond]
+
+
 for(i in 1:length(Layers)){
   STACK <- list()
   for(j in 1:nrow(Layers[[i]])){
     while (length(STACK) < j) {
       try({
-        download.file(Layers[[i]]$Link[j], destfile = paste0("Temp", Layers[[i]]$Bio[j], ".tif"), method = "libcurl")
-        STACK[[j]] <- raster(paste0("Temp", Layers[[i]]$Bio[j], ".tif")) %>% 
+        STACK[[j]] <- terra::rast(paste0('/vsicurl/', Layers[[i]]$Link[j])) %>% 
           magrittr::set_names(paste0("bio", Layers[[i]]$Bio[j]))})
     }
     message(paste(j, "of", 19))
   }
   
 
-  STACK <- STACK %>% reduce(stack)
+  STACK <- rast(STACK)
   
-  writeRaster(STACK, paste(unique(Layers[[i]]$Model), unique(Layers[[i]]$RCP),".tif", sep = "_"), overwrite=TRUE)
+  writeRaster(STACK, paste(unique(Layers[[i]]$Year),unique(Layers[[i]]$RCP), paste(unique(Layers[[i]]$Model), unique(Layers[[i]]$RCP),".tif", sep = "_"), sep = "/"), overwrite=TRUE)
   
   To_erase <- list.files(pattern = "Temp", full.names = T)
   
@@ -57,3 +68,39 @@ for(i in 1:length(Layers)){
   print(paste(i, "of", length(Layers), "Ready!"))
 }
 
+### Current
+
+library(sf)
+library(raster)
+library(tidyverse)
+library(rgdal)
+library(terra)
+
+
+#Carpeta de capas
+
+Table_Layers <- read_csv("Current.txt", col_names = FALSE) %>% 
+  magrittr::set_names("Link") %>% 
+  mutate(Bio = str_remove_all(Link, "https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V1/climatologies/bio/CHELSA_bio10_")) %>% 
+  mutate(Bio = str_remove_all(Bio, ".tif"))
+
+dir.create("Current")
+
+Table_Layers <- Table_Layers[1:19,]
+
+STACK <- list()
+  for(i in 1:nrow(Table_Layers)){
+    while (length(STACK) < i) {
+      try({
+        STACK[[i]] <- terra::rast(paste0('/vsicurl/', Table_Layers$Link[i])) %>% 
+          magrittr::set_names(paste0("bio", Table_Layers$Bio[i]))})
+    }
+    message(paste(i, "of", 19))
+  }
+  
+  
+STACK <- rast(STACK)
+  
+writeRaster(STACK, paste("Current", "Bioclim.tif", sep = "/"), overwrite=TRUE)
+  
+  
